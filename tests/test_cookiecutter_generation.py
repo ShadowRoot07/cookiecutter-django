@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 import tomllib
+from cookiecutter.exceptions import FailedHookException
 
 try:
     import sh
     SH_ERROR = sh.ErrorReturnCode
 except (ImportError, ModuleNotFoundError):
     sh = None
-    SH_ERROR = Exception  # Usamos la excepción base si sh no existe
-
+    SH_ERROR = Exception
 
 PATTERN = r"{{(\s?cookiecutter)[.](.*?)}}"
 RE_OBJ = re.compile(PATTERN)
@@ -30,9 +30,7 @@ elif sys.platform.startswith("darwin") and os.getenv("CI"):
 AUTOFIXABLE_STYLES = os.getenv("AUTOFIXABLE_STYLES") == "1"
 auto_fixable = pytest.mark.skipif(not AUTOFIXABLE_STYLES, reason="auto-fixable")
 
-
 def bin_exists(name):
-    import shutil
     return shutil.which(name) is not None
 
 # 2. Creamos los markers de salto
