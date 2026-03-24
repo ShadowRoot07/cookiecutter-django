@@ -10,11 +10,11 @@ import tomllib
 
 try:
     import sh
+    SH_ERROR = sh.ErrorReturnCode
 except (ImportError, ModuleNotFoundError):
-    sh = None  # sh doesn't support Windows
-import yaml
-from binaryornot.check import is_binary
-from cookiecutter.exceptions import FailedHookException
+    sh = None
+    SH_ERROR = Exception  # Usamos la excepción base si sh no existe
+
 
 PATTERN = r"{{(\s?cookiecutter)[.](.*?)}}"
 RE_OBJ = re.compile(PATTERN)
@@ -29,6 +29,15 @@ elif sys.platform.startswith("darwin") and os.getenv("CI"):
 # to fix in the template, so we don't insist too much on fixing them.
 AUTOFIXABLE_STYLES = os.getenv("AUTOFIXABLE_STYLES") == "1"
 auto_fixable = pytest.mark.skipif(not AUTOFIXABLE_STYLES, reason="auto-fixable")
+
+
+def bin_exists(name):
+    import shutil
+    return shutil.which(name) is not None
+
+# 2. Creamos los markers de salto
+requires_ruff = pytest.mark.skipif(not bin_exists("ruff"), reason="ruff not installed")
+requires_djlint = pytest.mark.skipif(not bin_exists("djlint"), reason="djlint not installed")
 
 
 @pytest.fixture
@@ -188,8 +197,9 @@ def test_project_generation(cookies, context, context_override):
     assert paths
     check_paths(paths)
 
-
 @pytest.mark.parametrize("context_override", SUPPORTED_COMBINATIONS, ids=_fixture_id)
+@pytest.mark.skipif(sh is None, reason="sh module not installed")
+@pytest.mark.skipif(not bin_exists("ruff"), reason="ruff binary not found")
 def test_ruff_check_passes(cookies, context_override):
     """Generated project should pass ruff check."""
     result = cookies.bake(extra_context=context_override)
@@ -253,9 +263,9 @@ def test_djlint_lint_passes(cookies, context_override):
             ".",
             _cwd=str(result.project_path),
         )
-    except sh.ErrorReturnCode as e:
-        pytest.fail(e.stdout.decode())
-
+    except SH_ERROR as e:
+        msg = e.stdout.decode() if hasattr(e, "stdout") else str(e)
+        pytest.fail(msg)
 
 @auto_fixable
 @pytest.mark.parametrize("context_override", SUPPORTED_COMBINATIONS, ids=_fixture_id)
