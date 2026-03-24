@@ -24,6 +24,9 @@ SUCCESS = "\x1b[1;32m [SUCCESS]: "
 
 DEBUG_VALUE = "debug"
 
+def command_exists(cmd):
+    return shutil.which(cmd) is not None
+
 
 def remove_open_source_files():
     file_names = ["CONTRIBUTORS.txt", "LICENSE"]
@@ -528,8 +531,11 @@ def main():  # noqa: C901, PLR0912, PLR0915
 
 
 def setup_dependencies():
-    print("Installing python dependencies using uv...")
+    if not command_exists("uv"):
+        print(INFO + "uv not found, skipping dependency installation." + TERMINATOR)
+        return
 
+    print("Installing python dependencies using uv...")
     if "{{ cookiecutter.use_docker }}".lower() == "y":
         # Build a trimmed down Docker image add dependencies with uv
         uv_docker_image_path = Path("compose/local/uv/Dockerfile")
